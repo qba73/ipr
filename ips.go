@@ -1,9 +1,13 @@
 package main
 
 import (
-	"io/ioutil"
+	"encoding/json"
 	"net/http"
+	"time"
 )
+
+var myHttpClient = &http.Client{Timeout: 10 * time.Second}
+
 
 type ipv4 struct {
 	IPv4prefix string `json:"ipv4_prefix"`
@@ -24,16 +28,21 @@ type ipranges struct {
 	IPv6prefixes []ipv6 `json:"ipv6_prefixes"`
 }
 
-func fetchData(url string) ([]byte, error)  {
-	res, err := http.Get(url)
+// getData fetches the given url and decodes into target (interface)
+func getData(url string, target interface{}) error {
+	res, err := myHttpClient.Get(url)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer res.Body.Close()
 
-	b, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
+	return json.NewDecoder(res.Body).Decode(target)
+}
+
+func getIPRanges(url string) (ipranges, error)  {
+	var rx ipranges
+	if err := getData(url, &rx); err != nil {
+		return ipranges{}, err
 	}
-	return b, nil
+	return rx, nil
 }

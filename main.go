@@ -1,19 +1,13 @@
 package main
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
 const awsurl = "https://ip-ranges.amazonaws.com/ip-ranges.json"
 
-
-func main()  {
-	b, err := fetchData(awsurl)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "fetch: reading %s: %v\n", awsurl, err)
-		os.Exit(1)
+func main() {
+	rx, err := getIPRanges(awsurl)
+	if err != nil{
+		fmt.Println(err)
 	}
-
-	fmt.Printf("%s", b)
+	fmt.Println(rx)
 }
