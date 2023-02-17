@@ -1,2 +1,2 @@
 # ipr
-Utility for managing AWS IP ranges.
+Utility for reading whitelisted AWS IP ranges.
