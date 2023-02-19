@@ -4,12 +4,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 )
 
-const awsurl = "https://ip-ranges.amazonaws.com/ip-ranges.json"
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
 
-var myHttpClient = &http.Client{Timeout: 10 * time.Second}
+type response struct {
+	SyncToken  string `json:"syncToken"`
+	CreateDate string `json:"createDate"`
+	Prefixes   []struct {
+		IPPrefix           string `json:"ip_prefix"`
+		Region             string `json:"region"`
+		Service            string `json:"service"`
+		NetworkBorderGroup string `json:"network_border_group"`
+	} `json:"prefixes"`
+}
 
 type ipv4 struct {
 	IPv4prefix string `json:"ipv4_prefix"`
@@ -29,6 +44,8 @@ type ipranges struct {
 	IPv4prefixes []ipv4 `json:"prefixes"`
 	IPv6prefixes []ipv6 `json:"ipv6_prefixes"`
 }
+
+var myHttpClient = &http.Client{Timeout: 10 * time.Second}
 
 // getData fetches the given url and decodes into target (interface)
 func getData(url string, target interface{}) error {
@@ -50,8 +67,7 @@ func getIPRanges(url string) (ipranges, error) {
 }
 
 func RunCLI() {
-	fmt.Println("fetching whitelisted AWS IP Ranges")
-	rx, err := getIPRanges(awsurl)
+	rx, err := getIPRanges(getEnv("AWS_IP_URL", "https://ip-ranges.amazonaws.com/ip-ranges.json"))
 	if err != nil {
 		fmt.Println(err)
 	}
