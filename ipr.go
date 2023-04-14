@@ -139,6 +139,19 @@ func ProcessRanges(resp response) (IPRanges, error) {
 	return ipx, nil
 }
 
+func ToCSVRecords(ipx IPRanges) [][]string {
+	rx := [][]string{{"ip_type", "ip_prefix", "region", "service", "network_border_group"}}
+	for _, i := range ipx.IPv4Ranges {
+		row := []string{i.Type, i.IPprefix, i.Region, i.Service, i.NetworkBorderGroup}
+		rx = append(rx, row)
+	}
+	for _, i := range ipx.IPv6Ranges {
+		row := []string{i.Type, i.IPprefix, i.Region, i.Service, i.NetworkBorderGroup}
+		rx = append(rx, row)
+	}
+	return rx
+}
+
 func GetIPRanges() (IPRanges, error) {
 	return NewClient().Ranges()
 }
