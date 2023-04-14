@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	ipr.RunCLI()
+	ipr.Main()
 }
