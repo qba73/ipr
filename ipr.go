@@ -41,7 +41,8 @@ type IPRange struct {
 type IPRanges struct {
 	SyncToken  int       `json:"sync_token"`
 	CreateDate time.Time `json:"create_date"`
-	IPRanges   []IPRange `json:"ip_ranges"`
+	IPv4Ranges []IPRange `json:"ipv4_ranges"`
+	IPv6Ranges []IPRange `json:"ipv6_ranges"`
 }
 
 type Client struct {
@@ -85,7 +86,8 @@ func ProcessRanges(resp response) (IPRanges, error) {
 		return IPRanges{}, err
 	}
 
-	var ranges []IPRange
+	var ip4ranges []IPRange
+	var ip6ranges []IPRange
 	var prefix string
 	var iptype string
 
@@ -111,7 +113,7 @@ func ProcessRanges(resp response) (IPRanges, error) {
 				Service:            p.Service,
 				NetworkBorderGroup: p.NetworkBorderGroup,
 			}
-			ranges = append(ranges, ipv)
+			ip4ranges = append(ip4ranges, ipv)
 			continue
 		}
 
@@ -123,7 +125,7 @@ func ProcessRanges(resp response) (IPRanges, error) {
 				Service:            p.Service,
 				NetworkBorderGroup: p.NetworkBorderGroup,
 			}
-			ranges = append(ranges, ipv)
+			ip6ranges = append(ip6ranges, ipv)
 			continue
 		}
 	}
@@ -131,7 +133,8 @@ func ProcessRanges(resp response) (IPRanges, error) {
 	ipx := IPRanges{
 		SyncToken:  token,
 		CreateDate: createDate.UTC(),
-		IPRanges:   ranges,
+		IPv4Ranges: ip4ranges,
+		IPv6Ranges: ip6ranges,
 	}
 	return ipx, nil
 }

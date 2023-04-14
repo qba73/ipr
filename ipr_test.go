@@ -41,7 +41,7 @@ func TestMakeRanges_ProcessIPRangesOnValidInput(t *testing.T) {
 	want := ipr.IPRanges{
 		SyncToken:  1676592786,
 		CreateDate: time.Date(2023, 02, 17, 00, 13, 06, 00, time.UTC),
-		IPRanges: []ipr.IPRange{
+		IPv4Ranges: []ipr.IPRange{
 			{
 				Type:               "ipv4",
 				IPprefix:           "13.34.65.64/27",
@@ -49,6 +49,8 @@ func TestMakeRanges_ProcessIPRangesOnValidInput(t *testing.T) {
 				Service:            "AMAZON",
 				NetworkBorderGroup: "il-central-1",
 			},
+		},
+		IPv6Ranges: []ipr.IPRange{
 			{
 				Type:               "ipv6",
 				IPprefix:           "2600:1ff8:e000::/40",
