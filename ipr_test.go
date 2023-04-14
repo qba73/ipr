@@ -1,6 +1,8 @@
 package ipr_test
 
 import (
+	"bytes"
+	"encoding/csv"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -66,6 +68,42 @@ func TestMakeRanges_ProcessIPRangesOnValidInput(t *testing.T) {
 	}
 }
 
+func TestMakeCSVRecords_CreatesRecordsOnValidInput(t *testing.T) {
+	t.Parallel()
+
+	got := ipr.ToCSVRecords(validIPRanges)
+	want := [][]string{
+		{"ip_type", "ip_prefix", "region", "service", "network_border_group"},
+		{"ipv4", "13.34.65.64/27", "il-central-1", "AMAZON", "il-central-1"},
+		{"ipv6", "2600:1ff8:e000::/40", "sa-east-1", "S3", "sa-east-1"},
+	}
+
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestToCSV_CreatesCSVOnValidInput(t *testing.T) {
+	t.Parallel()
+
+	buf := &bytes.Buffer{}
+
+	records := ipr.ToCSVRecords(validIPRanges)
+	w := csv.NewWriter(buf)
+
+	err := w.WriteAll(records)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := buf.String()
+	want := "ip_type,ip_prefix,region,service,network_border_group\nipv4,13.34.65.64/27,il-central-1,AMAZON,il-central-1\nipv6,2600:1ff8:e000::/40,sa-east-1,S3,sa-east-1\n"
+
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
 var (
 	validResponse = strings.NewReader(`{
 		"syncToken": "1676592786",
@@ -85,4 +123,27 @@ var (
 		  }
 		  ]
 		}`)
+
+	validIPRanges = ipr.IPRanges{
+		SyncToken:  1676592786,
+		CreateDate: time.Date(2023, 02, 17, 00, 13, 06, 00, time.UTC),
+		IPv4Ranges: []ipr.IPRange{
+			{
+				Type:               "ipv4",
+				IPprefix:           "13.34.65.64/27",
+				Region:             "il-central-1",
+				Service:            "AMAZON",
+				NetworkBorderGroup: "il-central-1",
+			},
+		},
+		IPv6Ranges: []ipr.IPRange{
+			{
+				Type:               "ipv6",
+				IPprefix:           "2600:1ff8:e000::/40",
+				Region:             "sa-east-1",
+				Service:            "S3",
+				NetworkBorderGroup: "sa-east-1",
+			},
+		},
+	}
 )
