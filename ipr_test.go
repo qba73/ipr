@@ -1,8 +1,6 @@
 package ipr_test
 
 import (
-	"bytes"
-	"encoding/csv"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -26,7 +24,7 @@ func newTestTLSServer(resp io.Reader, t *testing.T) *httptest.Server {
 	return ts
 }
 
-func TestMakeRanges_ProcessIPRangesOnValidInput(t *testing.T) {
+func TestGetRanges_SucceedsOnValidInput(t *testing.T) {
 	t.Parallel()
 
 	ts := newTestTLSServer(validResponse, t)
@@ -36,7 +34,7 @@ func TestMakeRanges_ProcessIPRangesOnValidInput(t *testing.T) {
 	c.HTTPClient = ts.Client()
 	c.URL = ts.URL
 
-	got, err := c.Ranges()
+	got, err := c.GetRanges()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,36 +66,47 @@ func TestMakeRanges_ProcessIPRangesOnValidInput(t *testing.T) {
 	}
 }
 
-func TestMakeCSVRecords_CreatesRecordsOnValidInput(t *testing.T) {
+func TestGetRanges_ErrorsOnBogusToken(t *testing.T) {
 	t.Parallel()
 
-	got := ipr.ToCSVRecords(validIPRanges)
+	ts := newTestTLSServer(invalidResponseWithBogusSyncToken, t)
+	defer ts.Close()
+
+	c := ipr.NewClient()
+	c.HTTPClient = ts.Client()
+	c.URL = ts.URL
+
+	_, err := c.GetRanges()
+	if err == nil {
+		t.Error("want err, got nil")
+	}
+}
+
+func TestGetRanges_ErrorsOnMalformedDate(t *testing.T) {
+	t.Parallel()
+
+	ts := newTestTLSServer(invalidResponseWithMalformedDate, t)
+	defer ts.Close()
+
+	c := ipr.NewClient()
+	c.HTTPClient = ts.Client()
+	c.URL = ts.URL
+
+	_, err := c.GetRanges()
+	if err == nil {
+		t.Error("want err, got nil")
+	}
+}
+
+func TestIPRanges_CreatesCSVRecordsOnValidInput(t *testing.T) {
+	t.Parallel()
+
+	got := validIPRanges.CSVRecords()
 	want := [][]string{
 		{"ip_type", "ip_prefix", "region", "service", "network_border_group"},
 		{"ipv4", "13.34.65.64/27", "il-central-1", "AMAZON", "il-central-1"},
 		{"ipv6", "2600:1ff8:e000::/40", "sa-east-1", "S3", "sa-east-1"},
 	}
-
-	if !cmp.Equal(want, got) {
-		t.Error(cmp.Diff(want, got))
-	}
-}
-
-func TestToCSV_CreatesCSVOnValidInput(t *testing.T) {
-	t.Parallel()
-
-	buf := &bytes.Buffer{}
-
-	records := ipr.ToCSVRecords(validIPRanges)
-	w := csv.NewWriter(buf)
-
-	err := w.WriteAll(records)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got := buf.String()
-	want := "ip_type,ip_prefix,region,service,network_border_group\nipv4,13.34.65.64/27,il-central-1,AMAZON,il-central-1\nipv6,2600:1ff8:e000::/40,sa-east-1,S3,sa-east-1\n"
 
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
@@ -123,6 +132,44 @@ var (
 		  }
 		  ]
 		}`)
+
+	invalidResponseWithBogusSyncToken = strings.NewReader(`{
+		"syncToken": "",
+		"createDate": "2023-02-17-00-13-06",
+		"prefixes": [
+		  {
+			"ip_prefix": "13.34.65.64/27",
+			"region": "il-central-1",
+			"service": "AMAZON",
+			"network_border_group": "il-central-1"
+		  },
+		  {
+			"ipv6_prefix": "2600:1ff8:e000::/40",
+			"region": "sa-east-1",
+			"service": "S3",
+			"network_border_group": "sa-east-1"
+		  }
+		  ]
+		}`)
+
+	invalidResponseWithMalformedDate = strings.NewReader(`{
+			"syncToken": "1676592786",
+			"createDate": "2023-02-17 00-13-06",
+			"prefixes": [
+			  {
+				"ip_prefix": "13.34.65.64/27",
+				"region": "il-central-1",
+				"service": "AMAZON",
+				"network_border_group": "il-central-1"
+			  },
+			  {
+				"ipv6_prefix": "2600:1ff8:e000::/40",
+				"region": "sa-east-1",
+				"service": "S3",
+				"network_border_group": "sa-east-1"
+			  }
+			  ]
+			}`)
 
 	validIPRanges = ipr.IPRanges{
 		SyncToken:  1676592786,

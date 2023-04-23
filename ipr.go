@@ -18,18 +18,22 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-type response struct {
+// Response represents data received from AWS after
+// successfull call to the whitelisted ip ranges url:
+// "https://ip-ranges.amazonaws.com/ip-ranges.json"
+type Response struct {
 	SyncToken  string `json:"syncToken"`
 	CreateDate string `json:"createDate"`
 	Prefixes   []struct {
-		IPPrefix           string `json:"ip_prefix,omitempty"`
-		Ipv6Prefix         string `json:"ipv6_prefix,omitempty"`
+		IPPrefix           string `json:"ip_prefix"`
+		Ipv6Prefix         string `json:"ipv6_prefix"`
 		Region             string `json:"region"`
 		Service            string `json:"service"`
 		NetworkBorderGroup string `json:"network_border_group"`
 	} `json:"prefixes"`
 }
 
+// IPRange represents information about whitelisted IP range.
 type IPRange struct {
 	Type               string `json:"ipv"`
 	IPprefix           string `json:"ip_prefix"`
@@ -38,6 +42,7 @@ type IPRange struct {
 	NetworkBorderGroup string `json:"network_border_group"`
 }
 
+// IPRanges represents IPv4 and IPv6 AWS whitelisted IP ranges.
 type IPRanges struct {
 	SyncToken  int       `json:"sync_token"`
 	CreateDate time.Time `json:"create_date"`
@@ -45,11 +50,31 @@ type IPRanges struct {
 	IPv6Ranges []IPRange `json:"ipv6_ranges"`
 }
 
+// ToCSVRecords creates csv records ready to pass to a csv writer.
+func (ip IPRanges) CSVRecords() [][]string {
+	rx := [][]string{{"ip_type", "ip_prefix", "region", "service", "network_border_group"}}
+	for _, i := range ip.IPv4Ranges {
+		row := []string{i.Type, i.IPprefix, i.Region, i.Service, i.NetworkBorderGroup}
+		rx = append(rx, row)
+	}
+	for _, i := range ip.IPv6Ranges {
+		row := []string{i.Type, i.IPprefix, i.Region, i.Service, i.NetworkBorderGroup}
+		rx = append(rx, row)
+	}
+	return rx
+}
+
+// Client holds data for making calls
+// to the AWS whitelisted endpoint.
 type Client struct {
 	URL        string
 	HTTPClient *http.Client
 }
 
+// NewClient creates a default API client ready to talk to AWS endpoint.
+//
+// Default client uses the official AWS endpoint to fetch ip ranges.
+// You can specify different enpoint by exporting the `AWS_IP_URL` env var.
 func NewClient() *Client {
 	return &Client{
 		URL: getEnv("AWS_IP_URL", "https://ip-ranges.amazonaws.com/ip-ranges.json"),
@@ -59,24 +84,28 @@ func NewClient() *Client {
 	}
 }
 
-func (c *Client) Ranges() (IPRanges, error) {
+// Ranges returns whitelisted AWS IPv4 and IPv6 ranges.
+func (c *Client) GetRanges() (IPRanges, error) {
 	res, err := c.HTTPClient.Get(c.URL)
 	if err != nil {
 		return IPRanges{}, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return IPRanges{}, fmt.Errorf("ipr: got response code %v", res.StatusCode)
+		return IPRanges{}, fmt.Errorf("ipr: got status code %v", res.StatusCode)
 	}
-	var resp response
-	err = json.NewDecoder(res.Body).Decode(&resp)
-	if err != nil {
+	var resp Response
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
 		return IPRanges{}, fmt.Errorf("ipr: decoding response body %w", err)
 	}
-	return ProcessRanges(resp)
+	return ParseResponse(resp)
 }
 
-func ProcessRanges(resp response) (IPRanges, error) {
+// ParseResponse takes response struct and returns IPRanges.
+//
+// It errors if the token or timestamp is malformed, or when
+// either IPv4 or IPv6 cannot be parsed.
+func ParseResponse(resp Response) (IPRanges, error) {
 	token, err := strconv.Atoi(resp.SyncToken)
 	if err != nil {
 		return IPRanges{}, fmt.Errorf("ipr: malformed sync token: %v, %w", resp.SyncToken, err)
@@ -86,10 +115,10 @@ func ProcessRanges(resp response) (IPRanges, error) {
 		return IPRanges{}, err
 	}
 
-	var ip4ranges []IPRange
-	var ip6ranges []IPRange
-	var prefix string
-	var iptype string
+	var (
+		ip4ranges, ip6ranges []IPRange
+		prefix, iptype       string
+	)
 
 	for _, p := range resp.Prefixes {
 		if p.IPPrefix != "" {
@@ -139,21 +168,13 @@ func ProcessRanges(resp response) (IPRanges, error) {
 	return ipx, nil
 }
 
-func ToCSVRecords(ipx IPRanges) [][]string {
-	rx := [][]string{{"ip_type", "ip_prefix", "region", "service", "network_border_group"}}
-	for _, i := range ipx.IPv4Ranges {
-		row := []string{i.Type, i.IPprefix, i.Region, i.Service, i.NetworkBorderGroup}
-		rx = append(rx, row)
-	}
-	for _, i := range ipx.IPv6Ranges {
-		row := []string{i.Type, i.IPprefix, i.Region, i.Service, i.NetworkBorderGroup}
-		rx = append(rx, row)
-	}
-	return rx
-}
-
+// GetIPRanges pulls AWS Whitelisted IP ranges.
+//
+// It uses default IP Range client. If you want
+// to use a different AWS Whitelisted IP URL
+// export the env variable "AWS_IP_URL".
 func GetIPRanges() (IPRanges, error) {
-	return NewClient().Ranges()
+	return NewClient().GetRanges()
 }
 
 func runCLI(r io.Reader, w, er io.Writer) int {
