@@ -98,6 +98,23 @@ func TestGetRanges_ErrorsOnMalformedDate(t *testing.T) {
 	}
 }
 
+func TestGetRanges_ErrorsOnInvalidIPv4(t *testing.T) {
+	t.Parallel()
+
+	ts := newTestTLSServer(invalidResponseWithInvalidIPv4, t)
+	defer ts.Close()
+
+	c := ipr.NewClient()
+	c.HTTPClient = ts.Client()
+	c.URL = ts.URL
+
+	_, err := c.GetRanges()
+	if err == nil {
+		t.Error("want err, got nil")
+	}
+
+}
+
 func TestIPRanges_CreatesCSVRecordsOnValidInput(t *testing.T) {
 	t.Parallel()
 
@@ -169,6 +186,25 @@ var (
 				"network_border_group": "sa-east-1"
 			  }
 			  ]
+			}`)
+
+	invalidResponseWithInvalidIPv4 = strings.NewReader(`{
+			"syncToken": "1676592786",
+			"createDate": "2023-02-17-00-13-06",
+			"prefixes": [
+			  {
+				"ip_prefix": "313.34.65.64/27",
+				"region": "il-central-1",
+				"service": "AMAZON",
+				"network_border_group": "il-central-1"
+			  },
+			  {
+				"ipv6_prefix": "2600:1ff8:e000::/40",
+				"region": "sa-east-1",
+				"service": "S3",
+				"network_border_group": "sa-east-1"
+			  }
+		  	]
 			}`)
 
 	validIPRanges = ipr.IPRanges{
