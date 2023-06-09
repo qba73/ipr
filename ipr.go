@@ -178,6 +178,13 @@ func GetIPRanges() (IPRanges, error) {
 }
 
 func runCLI(r io.Reader, w, er io.Writer) int {
+	c := NewClient()
+	rx, err := c.GetRanges()
+	if err != nil {
+		fmt.Fprintln(er, err)
+		os.Exit(1)
+	}
+	fmt.Fprintln(w, rx)
 	return 0
 }
 
