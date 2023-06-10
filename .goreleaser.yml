@@ -3,9 +3,11 @@ builds:
     goos:
       - darwin
       - linux
+      - windows
     goarch:
       - amd64
       - arm64
+    main: ./cmd
     env:
       - CGO_ENABLED=0
 
