@@ -22,7 +22,7 @@ brews:
     homepage: "https://github.com/qba73/ipr"
     tap:
       owner: qba73
-      name: homebrew-qba73
+      name: homebrew-tap
     commit_author:
       name: qba73
       email: info@jarosz.dev
